@@ -1,0 +1,2 @@
+0 * * * * ~/jednotka/cache.sh
+0 */4 * * * ~/jednotka/restart.sh
