@@ -525,6 +525,44 @@ def check_multithread(matches):
     if(matches == 'Celkové umiestnenie'):
         return None
     try:
+
+        driver_fortuna = Driver.create_driver()
+        driver_fortuna.get(endpoint_fortuna)
+        try:
+            WebDriverWait(driver_fortuna, 20).until(EC.element_to_be_clickable(driver_fortuna.find_element_by_id('cookie-consent-button-accept')))
+            driver_fortuna.execute_script("arguments[0].click();",driver_fortuna.find_element_by_id('cookie-consent-button-accept'))
+            WebDriverWait(driver_fortuna, 20).until(EC.element_to_be_clickable(driver_fortuna.find_element_by_class_name('live-disabled-filter-label')))
+            driver_fortuna.execute_script("arguments[0].click();",driver_fortuna.find_element_by_class_name('live-disabled-filter-label'))
+            WebDriverWait(driver_fortuna, 20).until(EC.element_to_be_clickable(driver_fortuna.find_element_by_class_name('events-list')))
+        except:
+            pass
+
+        reached_page_end = False
+        last_height = driver_fortuna.execute_script("return document.body.scrollHeight")
+
+        while not reached_page_end:
+            driver_fortuna.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(2)
+            new_height = driver_fortuna.execute_script("return document.body.scrollHeight")
+            if last_height == new_height:
+                    reached_page_end = True
+            else:
+                    last_height = new_height
+        driver_fortuna.execute_script("window.scrollTo(0, 0);")
+
+        events_list_fortuna_raw = driver_fortuna.find_elements_by_xpath('//tr')
+        events_list_filtered_fortuna = []
+        matches_thread_fortuna_text = []
+        for raw in events_list_fortuna_raw:
+            if(raw.text == '' or 'Výsledok' in raw.text):
+                continue
+            title_fortuna = raw.find_element_by_class_name('col-title')
+            title_fortuna = title_fortuna.find_element_by_class_name('market-name').text
+            title_fortuna = title_fortuna.replace('BetBuilder','')
+            title_fortuna = title_fortuna.replace('\n','')
+            matches_thread_fortuna_text.append(title_fortuna)
+
+
         driver_tipsport = Driver.create_driver()
         #driver_tipsport = webdriver.Chrome(options=chrome_options,service=s)
         driver_tipsport.get(endpoint_tipsport)
@@ -583,10 +621,15 @@ def check_multithread(matches):
                 print('Celkové umiestnenie skip')
                 return None
             paired = find_most_similiar(team,matches_thread_tipsport_text)
-            if(paired == None):
-                print('Nie je pár')
+            # if(paired == None):
+            #     print('Nie je pár tipsport')
+            #     return None
+            paired_fortuna = find_most_similiar(team,matches_thread_fortuna_text)
+            if(paired == None and paired_fortuna == None):
+                print('Nie je ani jeden par')
                 return None
-            print(f'{team} ---- {paired}')
+
+            print(f'{team} ---- {paired} ---- {paired_fortuna}')
             splitted = team.split(' - ')
             first_team = splitted[0]
             second_team = splitted[1]
@@ -655,21 +698,24 @@ def check_multithread(matches):
                 dict_to_append['stranka']='nike'
                 df = df.append(dict_to_append,ignore_index=True)
             time_nike = driver.find_element_by_class_name('reakt-scoreboard-period').text
-            driver_tipsport = Driver.create_driver()
-            driver_tipsport.get(endpoint_tipsport)
-            WebDriverWait(driver_tipsport, 60).until(EC.visibility_of_element_located((By.CLASS_NAME,"o-matchRow")))
-            rows_tipsport = driver_tipsport.find_elements_by_class_name("o-matchRow")
-            tipsport_match = ''
-            for rows_tipsport_for_match in rows_tipsport:
-                match_name = rows_tipsport_for_match.find_element_by_class_name('o-matchRow__matchName').text
-                if match_name==paired:
-                    tipsport_match = rows_tipsport_for_match
-                    break
-            match_name_tipsport = tipsport_match.find_element_by_class_name('o-matchRow__matchName')
-            result_tipsport = findTipsport(driver_tipsport,tipsport_match,df)
-            res_to_print = result_tipsport.to_dict('records')
+            match_name_tipsport = None
+            match_name_fortuna = None
+            if(paired != None):
+                driver_tipsport = Driver.create_driver()
+                driver_tipsport.get(endpoint_tipsport)
+                WebDriverWait(driver_tipsport, 60).until(EC.visibility_of_element_located((By.CLASS_NAME,"o-matchRow")))
+                rows_tipsport = driver_tipsport.find_elements_by_class_name("o-matchRow")
+                tipsport_match = ''
+                for rows_tipsport_for_match in rows_tipsport:
+                    match_name = rows_tipsport_for_match.find_element_by_class_name('o-matchRow__matchName').text
+                    if match_name==paired:
+                        tipsport_match = rows_tipsport_for_match
+                        break
+                match_name_tipsport = tipsport_match.find_element_by_class_name('o-matchRow__matchName')
+                df = findTipsport(driver_tipsport,tipsport_match,df)
+                res_to_print = df.to_dict('records')
             #print(f'{res_to_print} result')
-            res = calculateArbitrageAndSend(result_tipsport,match_name_tipsport.text,time_nike,nazov_nike)
+            res = calculateArbitrageAndSend(df,match_name_tipsport.text,time_nike,nazov_nike)
             print(res)
             
         except Exception as e:
@@ -821,7 +867,15 @@ import copy
 import warnings
 import sys
 import time
+import datetime
 warnings.filterwarnings("ignore")
+
+today = datetime.datetime.today().strftime('%Y-%m-%d')
+tomorrow = datetime.datetime.today() + datetime.timedelta(days=1)
+tomorrow = tomorrow.strftime('%Y-%m-%d')
+
+endpoint_fortuna = f'https://www.ifortuna.sk/stavkovanie/futbal?selectDates=1&date={today}'
+endpoint_fortuna_tomorrow = f'https://www.ifortuna.sk/stavkovanie/futbal?selectDates=1&date={tomorrow}'
 
 endpoint = 'https://www.nike.sk/tipovanie/futbal?dnes'
 endpoint_zajtra = 'https://www.nike.sk/tipovanie/futbal?zajtra'
@@ -831,6 +885,10 @@ endpoint_tipsport_zajtra = 'https://www.tipsport.sk/kurzy/futbal-16?timeFilter=f
 
 first_halftime_tipsport = ['1.polčas','1. polčas','1.pol','1. pol','1. polčasu','1.polčasu','1. polčase','1.polčase']
 second_halftime_tipsport = ['2.polčas','2. polčas','2.pol','2. pol', '2. polčasu','2.polčasu','2. polčase','2.polčasu']
+
+first_halftime_fortuna = ['1.polčas','1. polčas','1.pol','1. pol','1. polčasu','1.polčasu','1. polčase','1.polčase','1.poločas','1. poločas']
+second_halftime_fortuna = ['2.polčas','2. polčas','2.pol','2. pol', '2. polčasu','2.polčasu','2. polčase','2.polčasu','2.poločas','2. poločas']
+
 slovnik_tipsport_futbal = {'':'not found',
                         'Výsledok zápasu':'1X2',
                        'Výsledok 1. polčasu':'1X2',
@@ -981,6 +1039,58 @@ potrebujem_nike = ['1. polčas',
                    'dvojka dá gól v každom polčase'
 ]
 
+slovnik_fortuna_futbal = {'':'not found',
+                        'Výsledok 1. polčasu':'1X2',
+                       'Zápas':'1X2',
+                       '2.polčas':'1X2',
+                       'Výsledok zápasu bez remízy':'Víťaz zápasu bez remízy',
+                       'Počet gólov':'Počet gólov',
+                       'jednotka počet gólov':'Počet gólov',
+                       'dvojka počet gólov':'Počet gólov',
+                       'Handicap':'Handicap',
+                       'Počet gólov v 1. polčase':'Počet gólov',
+                       '2.polčas počet gólov':'Počet gólov',
+                       '1.polčas: jednotka počet gólov':'Počet gólov',
+                       '1.polčas: dvojka počet gólov':'Počet gólov',
+                       '2.polčas: jednotka počet gólov' : 'Počet gólov',
+                       '2.polčas: dvojka počet gólov' : 'Počet gólov',
+                       '1. gól':'1. gól',
+                       'Každý z tímov dá gól':'Každý tím dá 1 a viac gólov',
+                       '1.polčas: oba tímy dajú gól':'Každý tím dá 1 a viac gólov',
+                       'Polčas s najvyšším počtom gólov':'V ktorom polčase padne najviac gólov',
+                       'jednotka vyhrá aspoň jeden polčas':'Tím vyhrá aspoň jeden polčas',
+                       'dvojka vyhrá aspoň jeden polčas':'Tím vyhrá aspoň jeden polčas',
+                       'jednotka vyhrá oba polčasy':'Tím vyhrá obidva polčasy',
+                       'dvojka vyhrá oba polčasy':'Tím vyhrá obidva polčasy',
+                       'jednotka dá gól v oboch polčasoch':'Tím dá gól v oboch polčasoch',
+                       'dvojka dá gól v oboch polčasoch':'Tím dá gól v oboch polčasoch'
+}
+
+potrebujem_fortuna = ['Výsledok 1. polčasu',
+                       'Zápas',
+                       '2.polčas',
+                       'Výsledok zápasu bez remízy',
+                       'Počet gólov',
+                       'jednotka počet gólov',
+                       'dvojka počet gólov',
+                       'Handicap',
+                       'Počet gólov v 1. polčase',
+                       '2.polčas počet gólov',
+                       '1.polčas: jednotka počet gólov',
+                       '1.polčas: dvojka počet gólov',
+                       '2.polčas: jednotka počet gólov',
+                       '2.polčas: dvojka počet gólov',
+                       '1. gól',
+                       'Každý z tímov dá gól',
+                       '1.polčas: oba tímy dajú gól',
+                       'Polčas s najvyšším počtom gólov',
+                       'jednotka vyhrá aspoň jeden polčas',
+                       'dvojka vyhrá aspoň jeden polčas',
+                       'jednotka vyhrá oba polčasy',
+                       'dvojka vyhrá oba polčasy',
+                       'jednotka dá gól v oboch polčasoch',
+                       'dvojka dá gól v oboch polčasoch'
+]
 
 #s = Service(driver_path)
 chrome_options = Options()
@@ -996,6 +1106,7 @@ if __name__ == '__main__':
     if(day==1):
         endpoint = 'https://www.nike.sk/tipovanie/futbal?zajtra'
         endpoint_tipsport = 'https://www.tipsport.sk/kurzy/futbal-16?timeFilter=form.period.tomorrow&limit=1000'
+        endpoint_fortuna = f'https://www.ifortuna.sk/stavkovanie/futbal?selectDates=1&date={tomorrow}'
     while(True):
         try:
             driver = webdriver.Chrome(options=chrome_options)
