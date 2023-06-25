@@ -711,11 +711,11 @@ def check_multithread(matches):
                     if match_name==paired:
                         tipsport_match = rows_tipsport_for_match
                         break
-                match_name_tipsport = tipsport_match.find_element_by_class_name('o-matchRow__matchName')
+                match_name_tipsport = tipsport_match.find_element_by_class_name('o-matchRow__matchName').text
                 df = findTipsport(driver_tipsport,tipsport_match,df)
                 res_to_print = df.to_dict('records')
             #print(f'{res_to_print} result')
-            res = calculateArbitrageAndSend(df,match_name_tipsport.text,time_nike,nazov_nike)
+            res = calculateArbitrageAndSend(df,match_name_tipsport,time_nike,nazov_nike)
             print(res)
             
         except Exception as e:
@@ -728,6 +728,9 @@ def check_multithread(matches):
         print(f'Didnt find any match with name {matches} {e}')
         return None              
     
+
+
+
 
 
 def findTipsport(driver_tipsport,row,df):
