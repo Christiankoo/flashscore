@@ -334,7 +334,7 @@ def OU(dff,cat):
         return None
 
 
-def send(max_df,match,time,match_nike):
+def send(max_df,match,time,match_nike,match_fortuna):
     TOKEN = "5717884327:AAG1XYqDvCJMB1cpE3PlnjipwZv2rzOS8ns"
     chat_id = "-1001695455818"
     message="test"
@@ -357,7 +357,7 @@ def send(max_df,match,time,match_nike):
                 record_for_msg_rounded = float("%.2f" % value)
                 key = key.replace('Zápas','')
                 key = key.replace('Both','')
-                message = f'------------------------------ \n SPORT - {sport} \n {key} \n PROFIT : {record_for_msg_rounded} % \n MATCH_TIPSPORT : {match} \n MATCH_NIKE : {match_nike} \n TIME : {time} '
+                message = f'------------------------------ \n SPORT - {sport} \n {key} \n PROFIT : {record_for_msg_rounded} % \n MATCH_TIPSPORT : {match} \n MATCH_NIKE : {match_nike} \n MATCH_FORTUNA : {match_fortuna} \n TIME : {time} '
                 url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={chat_id}&text={message}"
                 print(requests.get(url))
                 try:
@@ -457,7 +457,7 @@ def calculate1X2DS(dff,cat):
         print(f'calculate1X2DS {e}')
         return None
     
-def calculateArbitrageAndSend(df,match,time,match_nike):
+def calculateArbitrageAndSend(df,match,time,match_nike,match_name_fortuna):
     try:
         all_df = pd.DataFrame()
         df = df[df.full!='Každý tím dá v zápase 2 a viac gólov']
@@ -514,7 +514,7 @@ def calculateArbitrageAndSend(df,match,time,match_nike):
                     all_df = all_df.append(results,ignore_index=True)
         all_df = all_df.max().reset_index()
         all_df_max = all_df[all_df[0]==all_df[0].max()]
-        return send(all_df_max,match,time,match_nike)
+        return send(all_df_max,match,time,match_nike,match_name_fortuna)
     except Exception as e:
         print(f'calculatearbitrageandsend {e}')
         return None
@@ -714,8 +714,51 @@ def check_multithread(matches):
                 match_name_tipsport = tipsport_match.find_element_by_class_name('o-matchRow__matchName').text
                 df = findTipsport(driver_tipsport,tipsport_match,df)
                 res_to_print = df.to_dict('records')
+            if(paired_fortuna!= None):
+                driver_fortuna =  Driver.create_driver()
+                driver_fortuna.get(endpoint_fortuna)
+                fortuna_match = ''
+                try:
+                    WebDriverWait(driver_fortuna, 20).until(EC.element_to_be_clickable(driver_fortuna.find_element_by_id('cookie-consent-button-accept')))
+                    driver_fortuna.execute_script("arguments[0].click();",driver_fortuna.find_element_by_id('cookie-consent-button-accept'))
+                    WebDriverWait(driver_fortuna, 20).until(EC.element_to_be_clickable(driver_fortuna.find_element_by_class_name('live-disabled-filter-label')))
+                    driver_fortuna.execute_script("arguments[0].click();",driver_fortuna.find_element_by_class_name('live-disabled-filter-label'))
+                    WebDriverWait(driver_fortuna, 20).until(EC.element_to_be_clickable(driver_fortuna.find_element_by_class_name('events-list')))
+                except:
+                    pass
+
+                reached_page_end = False
+                last_height = driver_fortuna.execute_script("return document.body.scrollHeight")
+
+                while not reached_page_end:
+                    driver_fortuna.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                    time.sleep(2)
+                    new_height = driver_fortuna.execute_script("return document.body.scrollHeight")
+                    if last_height == new_height:
+                            reached_page_end = True
+                    else:
+                            last_height = new_height
+                driver_fortuna.execute_script("window.scrollTo(0, 0);")
+
+                events_list_fortuna_raw = driver_fortuna.find_elements_by_xpath('//tr')
+                for raw in events_list_fortuna_raw:
+                    try:
+                        title_fortuna = raw.find_element_by_class_name('col-title')
+                        title_fortuna = title_fortuna.find_element_by_class_name('market-name').text
+                        title_fortuna = title_fortuna.replace('BetBuilder','')
+                        title_fortuna = title_fortuna.replace('\n','')
+                        if title_fortuna==paired_fortuna:
+                            match_name_fortuna = title_fortuna
+                            fortuna_match = raw
+                            break
+                    except:
+                        continue
+                df = findFortuna(driver_fortuna,fortuna_match,df)
+                
+            res_to_print = df.to_dict('records')
             #print(f'{res_to_print} result')
-            res = calculateArbitrageAndSend(df,match_name_tipsport,time_nike,nazov_nike)
+            #print(df)
+            res = calculateArbitrageAndSend(df,match_name_tipsport,time_nike,nazov_nike,match_name_fortuna)
             print(res)
             
         except Exception as e:
@@ -730,7 +773,92 @@ def check_multithread(matches):
     
 
 
+def findFortuna(driver_fortuna,event_fortuna,df):
+    try:
+        dict_to_append = {}  
+        title_fortuna = event_fortuna.find_element_by_class_name('col-title')
+        title_fortuna = title_fortuna.find_element_by_class_name('market-name').text
+        title_fortuna = title_fortuna.replace('BetBuilder','')
+        title_fortuna = title_fortuna.replace('\n','')
+        date_fortuna = event_fortuna.find_element_by_class_name('col-date').text
+        jednotka_fortuna = title_fortuna.split(' - ')[0]
+        dvojka_fortuna = title_fortuna.split(' - ')[1]
+        dict_to_append['full']='Zápas'
+        dict_to_append['category']='1X2'
+        dict_to_append['stranka']='fortuna'
+        _1X2_odds = event_fortuna.find_elements_by_class_name('col-odds')
+        bets_dict = {}
+        bets_dict['jednotka']=_1X2_odds[0].text
+        bets_dict['remíza']=_1X2_odds[1].text
+        bets_dict['dvojka']=_1X2_odds[2].text
+        bets_dict['1x']=_1X2_odds[3].text
+        bets_dict['x2']=_1X2_odds[4].text
+        bets_dict['12']=_1X2_odds[5].text
+        dict_to_append['time']='Zápas'
+        dict_to_append['team']='Both'
+        dict_to_append['bets']=bets_dict
+        df = df.append(dict_to_append,ignore_index=True)
+        WebDriverWait(driver_fortuna, 20).until(EC.element_to_be_clickable(event_fortuna.find_element_by_class_name('col-more')))
+        more = event_fortuna.find_element_by_class_name('col-more')
+        click_more = more.find_element_by_class_name('link-more-markets')
+        driver_fortuna.execute_script("arguments[0].click();",click_more)
+        time.sleep(2)
+        WebDriverWait(driver_fortuna, 20).until(EC.element_to_be_clickable(driver_fortuna.find_element_by_css_selector('.row-sub-markets[aria-hidden="false"]')))
+        bets_elements = driver_fortuna.find_element_by_css_selector('.row-sub-markets[aria-hidden="false"]')
+        all_elements = bets_elements.find_elements_by_class_name('market')
+        for element in all_elements:
+            dict_to_append = {}
+            bets_dict= {}
+            polcas = 'Zápas'
+            team = 'Both'
+            nazov_betu = element.find_element_by_tag_name('h3').text
+            nazov_betu = nazov_betu.replace(jednotka_fortuna,'jednotka')
+            nazov_betu = nazov_betu.replace(dvojka_fortuna,'dvojka')
+            odds = element.find_elements_by_class_name('odds-group')
+            if(nazov_betu not in potrebujem_fortuna):
+                continue
+            if 'jednotka' in nazov_betu:
+                team= 'jednotka'
+            if 'dvojka' in nazov_betu:
+                team = 'dvojka'
+            if any(substring in nazov_betu for substring in first_halftime_fortuna) == True:
+                polcas = '1.polčas'
+            if any(substring in nazov_betu for substring in second_halftime_fortuna) == True:
+                polcas = '2.polčas'
+            dict_to_append['time'] = polcas
+            dict_to_append['team'] = team
+            dict_to_append['stranka'] = 'fortuna'
+            dict_to_append['full']=nazov_betu
+            try:
+                dict_to_append['category']=slovnik_fortuna_futbal[nazov_betu]
+            except:
+                dict_to_append['category']=slovnik_fortuna_futbal['']
+            for odd in odds:
+                name = odd.find_elements_by_class_name('odds-name')
+                value = odd.find_elements_by_class_name('odds-value')
+                for n,v in zip(name,value):
+                    nazovv_team = n.text.replace(jednotka_fortuna,'jednotka')
+                    nazovv_team = nazovv_team.replace(dvojka_fortuna,'dvojka')
+                    if(nazovv_team == '10'):
+                        nazovv_team = '1x'
+                    if(nazovv_team == '02'):
+                        nazovv_team = 'x2'
+                    if('Menej ako' in nazovv_team or 'Viac ako' in nazovv_team):
+                        nazovv_team = convert_digits_to_float(nazovv_team)
+                    bets_dict[nazovv_team]=v.text
+            dict_to_append['bets']=bets_dict
+            df = df.append(dict_to_append,ignore_index=True)
+        driver_fortuna.execute_script("arguments[0].click();",click_more)
+    
+    except Exception as e:
+        print(f'FindFortuna error {e}')
+        pass
+    return df
 
+def convert_digits_to_float(string):
+    pattern = r'(?<!\d\.)\b(\d+)\b(?!\.\d)'
+    result = re.sub(pattern, lambda match: f'{float(match.group()):.1f}', string)
+    return result
 
 
 def findTipsport(driver_tipsport,row,df):
