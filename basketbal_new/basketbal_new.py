@@ -520,6 +520,18 @@ def check_multithread(matches):
     if(matches == 'Celkové umiestnenie'):
         return None
     try:
+        driver_tipsport = Driver.create_driver()
+        #driver_tipsport = webdriver.Chrome(options=chrome_options,service=s)
+        driver_tipsport.get(endpoint_tipsport)
+        WebDriverWait(driver_tipsport, 60).until(EC.visibility_of_element_located((By.CLASS_NAME,"o-matchRow")))
+        rows_tipsport = driver_tipsport.find_elements_by_class_name("o-matchRow")
+
+        matches_thread_tipsport_text = []
+
+        for row in rows_tipsport:
+            match_name = row.find_element_by_class_name('o-matchRow__matchName')
+            matches_thread_tipsport_text.append(match_name.text)
+
 
         driver_fortuna = Driver.create_driver()
         driver_fortuna.get(endpoint_fortuna)
@@ -546,8 +558,7 @@ def check_multithread(matches):
         driver_fortuna.execute_script("window.scrollTo(0, 0);")
 
         events_list_fortuna_raw = driver_fortuna.find_elements_by_xpath('//tr')
-        events_list_filtered_fortuna = []
-        matches_thread_fortuna_text = []
+        fortuna_match = None
         for raw in events_list_fortuna_raw:
             if(raw.text == '' or 'Výsledok' in raw.text):
                 continue
@@ -556,149 +567,61 @@ def check_multithread(matches):
                 title_fortuna = title_fortuna.find_element_by_class_name('market-name').text
                 title_fortuna = title_fortuna.replace('BetBuilder','')
                 title_fortuna = title_fortuna.replace('\n','')
-                matches_thread_fortuna_text.append(title_fortuna)
+                if title_fortuna==matches:
+                    fortuna_match = raw
+                    break
             except:
                 continue
 
-        driver_tipsport = Driver.create_driver()
-        #driver_tipsport = webdriver.Chrome(options=chrome_options,service=s)
-        driver_tipsport.get(endpoint_tipsport)
-        WebDriverWait(driver_tipsport, 60).until(EC.visibility_of_element_located((By.CLASS_NAME,"o-matchRow")))
-        rows_tipsport = driver_tipsport.find_elements_by_class_name("o-matchRow")
 
-        matches_thread_tipsport_text = []
+        # driver = Driver.create_driver()
+        # #driver = webdriver.Chrome(options=chrome_options,service=s)
+        # driver.get(endpoint)
+        # WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.CLASS_NAME,"boxes-inner-view")))
+        # wrapper = driver.find_element_by_class_name("boxes-inner-view")
 
-        for row in rows_tipsport:
-            match_name = row.find_element_by_class_name('o-matchRow__matchName')
-            matches_thread_tipsport_text.append(match_name.text)
+        # while True:
+        #     try:
+        #         WebDriverWait(driver, 60).until(EC.element_to_be_clickable(wrapper.find_element_by_class_name('btn-primary')))
+        #         driver.execute_script("arguments[0].click();", wrapper.find_element_by_class_name('btn-primary'))
+        #     except Exception as e:
+        #         break 
 
-        driver = Driver.create_driver()
-        #driver = webdriver.Chrome(options=chrome_options,service=s)
-        driver.get(endpoint)
-        WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.CLASS_NAME,"boxes-inner-view")))
-        wrapper = driver.find_element_by_class_name("boxes-inner-view")
+        # WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.CLASS_NAME,"boxes-inner-view")))
+        # wrapper = driver.find_element_by_class_name("boxes-inner-view")
+        # WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.CLASS_NAME,"bg-dark-tenis")))
+        # leagues = wrapper.find_elements_by_class_name("bg-dark-tenis")
 
-        while True:
-            try:
-                WebDriverWait(driver, 60).until(EC.element_to_be_clickable(wrapper.find_element_by_class_name('btn-primary')))
-                driver.execute_script("arguments[0].click();", wrapper.find_element_by_class_name('btn-primary'))
-            except Exception as e:
-                break 
-
-        WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.CLASS_NAME,"boxes-inner-view")))
-        wrapper = driver.find_element_by_class_name("boxes-inner-view")
-        WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.CLASS_NAME,"bg-dark-basketbal")))
-        leagues = wrapper.find_elements_by_class_name("bg-dark-basketbal")
-
-        row = ''
-        break_c = False
-        for i,league in enumerate(leagues):
-            rows_inside_league = league.find_elements_by_class_name("bet-view-prematch-row")
-            for y,rows in enumerate(rows_inside_league):
-                try:
-                    team = rows.find_element_by_class_name('bets-opponents').text.replace('\n','')
-                    team = team.replace('vs',' - ')
-                    if team==matches:
-                        row = rows
-                        break_c = True
-                        break
-                except:
-                    continue
-            if(break_c == True):
-                break 
+        # row = ''
+        # break_c = False
+        # for i,league in enumerate(leagues):
+        #     rows_inside_league = league.find_elements_by_class_name("bet-view-prematch-row")
+        #     for y,rows in enumerate(rows_inside_league):
+        #         try:
+        #             team = rows.find_element_by_class_name('bets-opponents').text.replace('\n','')
+        #             team = team.replace('vs',' - ')
+        #             if team==matches:
+        #                 row = rows
+        #                 break_c = True
+        #                 break
+        #         except:
+        #             continue
+        #     if(break_c == True):
+        #         break 
 
         df = pd.DataFrame()
-
+        time_nike = None
+        nazov_nike = None
         try:
-            team = row.find_element_by_class_name('bets-opponents').text.replace('\n','')
-            team = team.replace('vs',' - ')
-            nazov_nike = row.find_element_by_class_name('bets-opponents').text.replace('\n','')
-            nazov_nike = nazov_nike.replace('vs',' - ')
-            if(team=='Celkové umiestnenie'):
-                print('Celkové umiestnenie skip')
+            paired = find_most_similiar(matches,matches_thread_tipsport_text)
+            if(paired == None):
+                print('Nie je pár')
                 return None
-            paired = find_most_similiar(team,matches_thread_tipsport_text)
-            # if(paired == None):
-            #     print('Nie je pár tipsport')
-            #     return None
-            paired_fortuna = find_most_similiar(team,matches_thread_fortuna_text)
-            if(paired == None and paired_fortuna == None):
-                print('Nie je ani jeden par')
-                return None
-
-            print(f'{team} ---- {paired} ---- {paired_fortuna}')
-            splitted = team.split(' - ')
-            first_team = splitted[0]
-            second_team = splitted[1]
-            #print(f'{first_team} - {second_team}')
-            more_bets = row.find_element_by_class_name('odd-bet-number')
-            driver.execute_script("arguments[0].click();", more_bets)
-            WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.CLASS_NAME,"se-detail-3")))
-            WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.CLASS_NAME,"market-accordion-btn")))
-            #time.sleep(10)
-            all_bets_container = driver.find_element_by_class_name('se-detail-3')
-            all_opps = all_bets_container.find_elements_by_class_name('market-accordion-btn')
-            ##ALL OPPS (SUPERSANCA,ZAPAS ATD)
-            #print(len(all_opps))
-            #all_bets = all_bets_container.find_elements_by_class_name('bet-group-box-table')
-            all_bets = all_bets_container.find_elements_by_css_selector("[aria-expanded='true']")
-            indexes_to_delete = []
-            #VSETKY KURZY
-           #print(len(all_bets))
-            for i,opp in enumerate(all_opps):
-                text_to_check  = opp.text.replace(first_team,'jednotka')
-                text_to_check = text_to_check.replace(second_team,'dvojka')
-                if text_to_check not in potrebujem_nike:
-                    indexes_to_delete.append(i)
-            for i,opp in enumerate(all_opps):
-                if i in indexes_to_delete:
-                    continue
-                dict_to_append = {}
-                oppurtunity_team_replaced = opp.text.replace(first_team,'jednotka')
-                oppurtunity_team_replaced = oppurtunity_team_replaced.replace(second_team,'dvojka')
-              #  print(f'{oppurtunity_team_replaced}')
-                polcas = 'Zápas'
-                team = 'Both'
-                if any(substring in oppurtunity_team_replaced for substring in first_halftime) == True:
-                    polcas='1.polčas'
-                elif any(substring in oppurtunity_team_replaced for substring in second_halftime) == True:
-                    polcas='2.polčas'
-                elif any(substring in oppurtunity_team_replaced for substring in prva_stvrtina) == True:
-                    polcas='1.štvrtina'
-                if 'jednotka' in oppurtunity_team_replaced:
-                    team='jednotka'
-                elif 'dvojka' in oppurtunity_team_replaced:
-                    team='dvojka'
-                #print(f'{polcas} {team}')
-                try:
-                    dict_to_append['category'] = slovnik_nike_futbal[oppurtunity_team_replaced]
-                except:
-                    dict_to_append['category'] = slovnik_nike_futbal['']
-                   # print(f'neni {oppurtunity_team_replaced}')
-                dict_to_append['time']=polcas
-                dict_to_append['team']=team
-                #print(dict_to_append)
-                bets_dict = {}
-                for row in all_bets[i].find_elements_by_class_name('bets-row'):
-                    nazvy = row.find_elements_by_class_name('bet-left')
-                    hodnoty = row.find_elements_by_class_name('bet-right')
-                    for nazov,hodnota in zip(nazvy,hodnoty):
-                        hodnota_to_check = hodnota.text
-                        if(hodnota_to_check == ''):
-                            hodnota_to_check=1.00
-                        team1 = nazov.text.replace(first_team,'jednotka')
-                        team1 = team1.replace(second_team,'dvojka')
-                        #print(f'{team1} {hodnota_to_check}')
-                        bets_dict[team1]=hodnota_to_check
-                #if(dict_to_append['category']=='1X2'):
-                dict_to_append['bets']=bets_dict
-                dict_to_append['full']=oppurtunity_team_replaced
-                #dict_to_append['match']=f'{first_team} - {second_team}'
-                dict_to_append['stranka']='nike'
-                df = df.append(dict_to_append,ignore_index=True)
-            time_nike = driver.find_element_by_class_name('reakt-scoreboard-period').text
-            match_name_tipsport = None
-            match_name_fortuna = None
+            print(f'{matches} ---- {paired}')
+            df = findFortuna(driver_fortuna,fortuna_match,df)
+            #time_nike = driver.find_element_by_class_name('reakt-scoreboard-period').text
+            match_name_fortuna = matches
+            match_name_tipsport = paired
             if(paired != None):
                 driver_tipsport = Driver.create_driver()
                 driver_tipsport.get(endpoint_tipsport)
@@ -712,51 +635,7 @@ def check_multithread(matches):
                         break
                 match_name_tipsport = tipsport_match.find_element_by_class_name('o-matchRow__matchName').text
                 df = findTipsport(driver_tipsport,tipsport_match,df)
-                res_to_print = df.to_dict('records')
-            if(paired_fortuna!= None):
-                driver_fortuna =  Driver.create_driver()
-                driver_fortuna.get(endpoint_fortuna)
-                fortuna_match = ''
-                try:
-                    WebDriverWait(driver_fortuna, 20).until(EC.element_to_be_clickable(driver_fortuna.find_element_by_id('cookie-consent-button-accept')))
-                    driver_fortuna.execute_script("arguments[0].click();",driver_fortuna.find_element_by_id('cookie-consent-button-accept'))
-                    WebDriverWait(driver_fortuna, 20).until(EC.element_to_be_clickable(driver_fortuna.find_element_by_class_name('live-disabled-filter-label')))
-                    driver_fortuna.execute_script("arguments[0].click();",driver_fortuna.find_element_by_class_name('live-disabled-filter-label'))
-                    WebDriverWait(driver_fortuna, 20).until(EC.element_to_be_clickable(driver_fortuna.find_element_by_class_name('events-list')))
-                except:
-                    pass
-
-                reached_page_end = False
-                last_height = driver_fortuna.execute_script("return document.body.scrollHeight")
-
-                while not reached_page_end:
-                    driver_fortuna.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                    time.sleep(2)
-                    new_height = driver_fortuna.execute_script("return document.body.scrollHeight")
-                    if last_height == new_height:
-                            reached_page_end = True
-                    else:
-                            last_height = new_height
-                driver_fortuna.execute_script("window.scrollTo(0, 0);")
-
-                events_list_fortuna_raw = driver_fortuna.find_elements_by_xpath('//tr')
-                for raw in events_list_fortuna_raw:
-                    try:
-                        title_fortuna = raw.find_element_by_class_name('col-title')
-                        title_fortuna = title_fortuna.find_element_by_class_name('market-name').text
-                        title_fortuna = title_fortuna.replace('BetBuilder','')
-                        title_fortuna = title_fortuna.replace('\n','')
-                        if title_fortuna==paired_fortuna:
-                            match_name_fortuna = title_fortuna
-                            fortuna_match = raw
-                            break
-                    except:
-                        continue
-                df = findFortuna(driver_fortuna,fortuna_match,df)
-                
             res_to_print = df.to_dict('records')
-            #print(f'{res_to_print} result')
-            #print(df)
             res = calculateArbitrageAndSend(df,match_name_tipsport,time_nike,nazov_nike,match_name_fortuna)
             print(res)
             
@@ -768,7 +647,7 @@ def check_multithread(matches):
         return None
     except Exception as e:
         print(f'Didnt find any match with name {matches} {e}')
-        return None              
+        return None               
     
 
 
@@ -1266,33 +1145,77 @@ if __name__ == '__main__':
         endpoint_fortuna = f'https://www.ifortuna.sk/stavkovanie/basketbal?selectDates=1&date={tomorrow}'
     while(True):
         try:
-            driver = webdriver.Chrome(options=chrome_options)
-            driver.get(endpoint)
-            WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.CLASS_NAME,"boxes-inner-view")))
-            print('wrapper found')
-            wrapper = driver.find_element_by_class_name("boxes-inner-view")
-            while True:
-                try:
-                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable(wrapper.find_element_by_class_name('btn-primary')))
-                    driver.execute_script("arguments[0].click();", wrapper.find_element_by_class_name('btn-primary'))
-                except Exception as e:
-                    break 
-            WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.CLASS_NAME,"boxes-inner-view")))
-            wrapper = driver.find_element_by_class_name("boxes-inner-view")
-            leagues = wrapper.find_elements_by_class_name("bg-dark-basketbal")
-            print('leagues found')
-            matches = []
-            for league in leagues:
-                rows_inside_league = league.find_elements_by_class_name("bet-view-prematch-row")
-                for row in rows_inside_league:
-                    try:
-                        team = row.find_element_by_class_name('bets-opponents').text.replace('\n','')
-                        team = team.replace('vs',' - ')
-                        matches.append(team)
-                    except:
-                        continue
+            # driver = webdriver.Chrome(options=chrome_options)
+            # driver.get(endpoint)
+            # WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.CLASS_NAME,"boxes-inner-view")))
+            # print('wrapper found')
+            # time.sleep(10)
+            # wrapper = driver.find_element_by_class_name("boxes-inner-view")
+            # print(wrapper.text)
+            # while True:
+            #     try:
+            #         WebDriverWait(driver, 20).until(EC.element_to_be_clickable(wrapper.find_element_by_class_name('btn-primary')))
+            #         driver.execute_script("arguments[0].click();", wrapper.find_element_by_class_name('btn-primary'))
+            #     except Exception as e:
+            #         break 
+            # WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.CLASS_NAME,"boxes-inner-view")))
+            # wrapper = driver.find_element_by_class_name("boxes-inner-view")
+            # leagues = wrapper.find_elements_by_class_name("bg-dark-futbal")
+            # print('leagues found')
+            # print(leagues)
+            # matches = []
+            # for league in leagues:
+            #     rows_inside_league = league.find_elements_by_class_name("bet-view-prematch-row")
+            #     for row in rows_inside_league:
+            #         try:
+            #             team = row.find_element_by_class_name('bets-opponents').text.replace('\n','')
+            #             team = team.replace('vs',' - ')
+            #             matches.append(team)
+            #         except:
+            #             continue
                     
-            driver.quit()
+            # driver.quit()
+
+            driver_fortuna = webdriver.Chrome(options=chrome_options)
+            driver_fortuna.get(endpoint_fortuna)
+            try:
+                WebDriverWait(driver_fortuna, 20).until(EC.element_to_be_clickable(driver_fortuna.find_element_by_id('cookie-consent-button-accept')))
+                driver_fortuna.execute_script("arguments[0].click();",driver_fortuna.find_element_by_id('cookie-consent-button-accept'))
+                WebDriverWait(driver_fortuna, 20).until(EC.element_to_be_clickable(driver_fortuna.find_element_by_class_name('live-disabled-filter-label')))
+                driver_fortuna.execute_script("arguments[0].click();",driver_fortuna.find_element_by_class_name('live-disabled-filter-label'))
+                WebDriverWait(driver_fortuna, 20).until(EC.element_to_be_clickable(driver_fortuna.find_element_by_class_name('events-list')))
+            except:
+                pass
+
+            reached_page_end = False
+            last_height = driver_fortuna.execute_script("return document.body.scrollHeight")
+
+            while not reached_page_end:
+                driver_fortuna.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(2)
+                new_height = driver_fortuna.execute_script("return document.body.scrollHeight")
+                if last_height == new_height:
+                        reached_page_end = True
+                else:
+                        last_height = new_height
+            driver_fortuna.execute_script("window.scrollTo(0, 0);")
+
+            events_list_fortuna_raw = driver_fortuna.find_elements_by_xpath('//tr')
+            events_list_filtered_fortuna = []
+            matches_thread_fortuna_text = []
+            for raw in events_list_fortuna_raw:
+                if(raw.text == '' or 'Výsledok' in raw.text):
+                    continue
+                try:
+                    title_fortuna = raw.find_element_by_class_name('col-title')
+                    title_fortuna = title_fortuna.find_element_by_class_name('market-name').text
+                    title_fortuna = title_fortuna.replace('BetBuilder','')
+                    title_fortuna = title_fortuna.replace('\n','')
+                    matches_thread_fortuna_text.append(title_fortuna)
+                except:
+                    continue
+                    
+            driver_fortuna.quit()
 
             """ small_arrays = np.array_split(np.array(matches), 3)
             arrays = []
@@ -1301,9 +1224,9 @@ if __name__ == '__main__':
                 
             threadLocal = threading.local()
 
-            number_of_processes = min(2, len(matches))
+            number_of_processes = min(3, len(matches_thread_fortuna_text))
             with ThreadPool(processes=number_of_processes) as pool:
-                result_array = pool.map(check_multithread, matches)
+                result_array = pool.map(check_multithread, matches_thread_fortuna_text)
                 # Must ensure drivers are quitted before threads are destroyed:
                 del threadLocal
                 # This should ensure that the __del__ method is run on class Driver:
