@@ -70,11 +70,6 @@ def max_from_onextwo(row,column):
     return max_dvojka[['stranka','dvojka']]
 
 def check_multithread(zapasy_id):
-    try:
-        if(checknute_zapasy[zapasy_id]==1):
-            pass
-    except Exception as e:
-        checknute_zapasy[zapasy_id]=1
     berem = ['1X2','HOME/AWAY','O/U','AH','DŠ']
     try:
         driver_zapas = Driver.create_driver()
@@ -83,74 +78,68 @@ def check_multithread(zapasy_id):
     except:
         pass
     try:
-        number = 6
-        while True:
-            try:
-                tabs = driver_zapas.find_element_by_xpath(f"//*[@id='detail']/div[{number}]/div[1]/div")
-                #print(f'zapas {zapasy_id} number {number}')
-                break
-            except Exception as e:
-                number = number + 1
-        tabs = driver_zapas.find_element_by_xpath(f"//*[@id='detail']/div[{number}]/div[1]/div")
+        WebDriverWait(driver_zapas, 20).until(EC.presence_of_element_located((By.CLASS_NAME, "detail__filter")))
+        tabs = driver_zapas.find_element_by_class_name('detail__filter')
         tabs_inside = []
-        [tabs_inside.append(tab) for tab in tabs.find_elements_by_class_name('tabs__tab') if(tab.text in berem)]
+        [tabs_inside.append(tab) for tab in tabs.find_elements_by_xpath('//a') if(tab.text in berem)]
         ds_pandas = pd.DataFrame()
         onextwo_pandas = pd.DataFrame()
         home_away_pandas= pd.DataFrame()
         ou_pandas = pd.DataFrame()
         ah_pandas = pd.DataFrame()
         for tab in tabs_inside:
-            if "selected" not in tab.get_attribute('class'):
+            if "active" not in tab.get_attribute('class'):
                 WebDriverWait(driver_zapas, 20).until(EC.element_to_be_clickable(tab))
                 driver_zapas.execute_script("arguments[0].click();", tab)
-            sety = tab.find_elements_by_xpath(f"//*[@id='detail']/div[{number}]/div[2]")
+                time.sleep(2)
+            sety_wrapper = driver_zapas.find_element_by_class_name("subFilter__group") 
+            sety = sety_wrapper.find_elements_by_xpath('.//a')
             for sett in sety:
-                sett_linky = sett.find_elements_by_class_name('subTabs__tab')
-                for set_link in sett_linky:
-                    if "selected" not in set_link.get_attribute('class'):
-                        WebDriverWait(driver_zapas, 20).until(EC.element_to_be_clickable(set_link))
-                        driver_zapas.execute_script("arguments[0].click();", set_link)
-                    wrapper = driver_zapas.find_element_by_xpath(f"//*[@id='detail']/div[{number}]/div[3]")
-                    tabulky = wrapper.find_elements_by_class_name('ui-table__body')
-                    for tabulka in tabulky:
-                        riadky = tabulka.find_elements_by_class_name('ui-table__row')
-                        for riadok in riadky:
-                            vsetko = {}
-                            vymazane_kurzy = []
-                            try:
-                                #print(riadok.find_elements_by_class_name('oddsCell__odd').get_attribute('title'))
-                                [vymazane_kurzy.append(x.text) for counter,x in enumerate(riadok.find_elements_by_class_name('oddsCell__odd')) if "Kurzy odstránené bookmakerom" in x.get_attribute('title')]
-                            except Exception as e:
-                                pass
-                            vsetko['set'] = set_link.text
-                            vsetko['stranka'] = riadok.find_element_by_class_name('prematchLink').get_attribute('title')
-                            kurzy = riadok.text.split('\n')
-                            for x in vymazane_kurzy:
-                                kurzy[kurzy.index(x)]='-'
-                            if(tab.text=='HOME/AWAY'):
-                                vsetko['jednotka']=kurzy[0]
-                                vsetko['dvojka']=kurzy[1]
-                                home_away_pandas = home_away_pandas.append(vsetko, ignore_index=True)
-                            elif(tab.text=='O/U'):
-                                vsetko['gemy']=kurzy[0]
-                                vsetko['over']=kurzy[1]
-                                vsetko['under']=kurzy[2]
-                                ou_pandas = ou_pandas.append(vsetko, ignore_index=True)
-                            elif(tab.text=='AH'):
-                                vsetko['gemy']=kurzy[0]
-                                vsetko['jednotka_gemy']=kurzy[1]
-                                vsetko['dvojka_gemy']=kurzy[2]
-                                ah_pandas = ah_pandas.append(vsetko, ignore_index=True)
-                            elif(tab.text=='DŠ'):
-                                vsetko['jednotkax']=kurzy[0]
-                                vsetko['jednadva']=kurzy[1]
-                                vsetko['xdva']=kurzy[2]
-                                ds_pandas = ds_pandas.append(vsetko, ignore_index=True)
-                            elif(tab.text=='1X2'):
-                                vsetko['jednotka']=kurzy[0]
-                                vsetko['x']=kurzy[1]
-                                vsetko['dvojka']=kurzy[2]
-                                onextwo_pandas = onextwo_pandas.append(vsetko, ignore_index=True)
+                if "active" not in sett.get_attribute('class'):
+                    WebDriverWait(driver_zapas, 20).until(EC.element_to_be_clickable(sett))
+                    driver_zapas.execute_script("arguments[0].click();", sett)
+                    time.sleep(2)
+                wrapper = driver_zapas.find_element_by_class_name(f"oddsTab__tableWrapper")
+                tabulky = wrapper.find_elements_by_class_name('ui-table__body')
+                for tabulka in tabulky:
+                    riadky = tabulka.find_elements_by_class_name('ui-table__row')
+                    for riadok in riadky:
+                        vsetko = {}
+                        vymazane_kurzy = []
+                        try:
+                            #print(riadok.find_elements_by_class_name('oddsCell__odd').get_attribute('title'))
+                            [vymazane_kurzy.append(x.text) for counter,x in enumerate(riadok.find_elements_by_class_name('oddsCell__odd')) if "Kurzy odstránené bookmakerom" in x.get_attribute('title')]
+                        except Exception as e:
+                            pass
+                        vsetko['set'] = sett.text
+                        vsetko['stranka'] = riadok.find_element_by_class_name('prematchLink').get_attribute('title')
+                        kurzy = riadok.text.split('\n')
+                        for x in vymazane_kurzy:
+                            kurzy[kurzy.index(x)]='-'
+                        if(tab.text=='HOME/AWAY'):
+                            vsetko['jednotka']=kurzy[0]
+                            vsetko['dvojka']=kurzy[1]
+                            home_away_pandas = home_away_pandas.append(vsetko, ignore_index=True)
+                        elif(tab.text=='O/U'):
+                            vsetko['gemy']=kurzy[0]
+                            vsetko['over']=kurzy[1]
+                            vsetko['under']=kurzy[2]
+                            ou_pandas = ou_pandas.append(vsetko, ignore_index=True)
+                        elif(tab.text=='AH'):
+                            vsetko['gemy']=kurzy[0]
+                            vsetko['jednotka_gemy']=kurzy[1]
+                            vsetko['dvojka_gemy']=kurzy[2]
+                            ah_pandas = ah_pandas.append(vsetko, ignore_index=True)
+                        elif(tab.text=='DŠ'):
+                            vsetko['jednotkax']=kurzy[0]
+                            vsetko['jednadva']=kurzy[1]
+                            vsetko['xdva']=kurzy[2]
+                            ds_pandas = ds_pandas.append(vsetko, ignore_index=True)
+                        elif(tab.text=='1X2'):
+                            vsetko['jednotka']=kurzy[0]
+                            vsetko['x']=kurzy[1]
+                            vsetko['dvojka']=kurzy[2]
+                            onextwo_pandas = onextwo_pandas.append(vsetko, ignore_index=True)
 
         try:
             home_away_pandas.loc[home_away_pandas.jednotka=='-',"jednotka"]=1.00
